@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 import unittest
 from datetime import date, datetime
@@ -8,7 +9,7 @@ from unittest.mock import Mock, patch
 import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from vehicle_bot.config import ROOT
+from vehicle_bot.config import Config, ConfigError, ROOT
 from vehicle_bot.matching import Matcher, normalize
 from vehicle_bot.models import Details, Notice
 from vehicle_bot.portal import Portal, PortalError, parse_details, parse_listing, soup_of
@@ -62,6 +63,17 @@ class MatchingTests(unittest.TestCase):
     def test_exclusions_and_normalization(self):
         self.assertEqual(normalize("  VÉHICULE—ÉLECTRIQUE "), "vehicule electrique")
         self.assertFalse(Matcher(["voiture"], ["location"]).matches("LOCATION de voiture"))
+
+
+class ConfigTests(unittest.TestCase):
+    def test_missing_settings_error_names_only_missing_settings(self):
+        with patch.dict(os.environ, {}, clear=True):
+            with self.assertRaises(ConfigError) as ctx:
+                Config.from_env()
+        self.assertEqual(
+            str(ctx.exception),
+            "Missing Vercel setting: DATABASE_URL, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, CRON_SECRET",
+        )
 
 
 class ParserTests(unittest.TestCase):

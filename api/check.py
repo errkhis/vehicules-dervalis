@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 
 # Works when next_bot is the Vercel project root and when imported from this repo.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from vehicle_bot.config import Config, load_env
+from vehicle_bot.config import Config, ConfigError, load_env
 from vehicle_bot.matching import Matcher
 from vehicle_bot.portal import Portal
 from vehicle_bot.service import run
@@ -44,6 +44,12 @@ def check(cron_secret: str | None = Query(default=None, alias="secret")):
         return JSONResponse(
             status_code=200 if result["ok"] else 503,
             content=result,
+            headers={"Cache-Control": "no-store"},
+        )
+    except ConfigError as exc:
+        return JSONResponse(
+            status_code=500,
+            content={"ok": False, "error": str(exc)},
             headers={"Cache-Control": "no-store"},
         )
     except Exception as exc:

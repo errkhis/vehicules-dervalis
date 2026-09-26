@@ -5,6 +5,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
+class ConfigError(ValueError):
+    """A safe configuration message that never includes a secret value."""
+
+
 def load_env():
     path = ROOT / ".env"
     if path.exists():
@@ -27,10 +31,11 @@ class Config:
     @classmethod
     def from_env(cls):
         load_env()
-        values = [os.environ.get(key, "").strip() for key in
-                  ("DATABASE_URL", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "CRON_SECRET")]
+        keys = ("DATABASE_URL", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "CRON_SECRET")
+        values = [os.environ.get(key, "").strip() for key in keys]
         if not all(values):
-            raise ValueError("Set DATABASE_URL, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID and CRON_SECRET")
+            missing = [key for key, value in zip(keys, values) if not value]
+            raise ConfigError("Missing Vercel setting: " + ", ".join(missing))
         if len(values[3]) < 16:
-            raise ValueError("CRON_SECRET must contain at least 16 characters")
+            raise ConfigError("CRON_SECRET must contain at least 16 characters")
         return cls(*values)
