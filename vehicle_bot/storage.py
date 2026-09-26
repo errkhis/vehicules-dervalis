@@ -12,7 +12,7 @@ class Store:
         import psycopg
         from psycopg.rows import dict_row
         self.conn = psycopg.connect(database_url, autocommit=True, row_factory=dict_row,
-                                    connect_timeout=10)
+                                    connect_timeout=10, prepare_threshold=None)
         self.chat_id = chat_id
         self.owner = str(uuid.uuid4())
         self.locked = False
