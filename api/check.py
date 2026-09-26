@@ -4,7 +4,7 @@ import os
 import sys
 from pathlib import Path
 
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
 
 # Works when next_bot is the Vercel project root and when imported from this repo.
@@ -17,18 +17,18 @@ from vehicle_bot.storage import Store
 from vehicle_bot.telegram import Telegram
 
 
-def authorized(header, secret):
-    return bool(secret) and hmac.compare_digest(header or "", "Bearer " + secret)
+def authorized(provided_secret, expected_secret):
+    return bool(expected_secret) and hmac.compare_digest(provided_secret or "", expected_secret)
 
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
 
 @app.get("/api/check")
-def check(authorization: str | None = Header(default=None)):
+def check(cron_secret: str | None = Query(default=None, alias="secret")):
     """Run one protected procurement scan for the external scheduler."""
     load_env()
-    if not authorized(authorization, os.environ.get("CRON_SECRET", "").strip()):
+    if not authorized(cron_secret, os.environ.get("CRON_SECRET", "").strip()):
         raise HTTPException(status_code=401, detail="unauthorized")
     if os.environ.get("VERCEL_ENV") not in (None, "production"):
         raise HTTPException(status_code=403, detail="production_only")

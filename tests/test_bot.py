@@ -249,11 +249,10 @@ class TelegramTests(unittest.TestCase):
             self.assertNotIn("secret", str(ctx.exception))
             self.assertTrue(ctx.exception.uncertain)
 
-    def test_authorization_requires_secret_and_bearer_header(self):
+    def test_authorization_requires_the_exact_url_secret(self):
         self.assertFalse(authorized(None, ""))
-        self.assertFalse(authorized("secret", "secret"))
-        self.assertFalse(authorized("Bearer wrong", "secret"))
-        self.assertTrue(authorized("Bearer secret", "secret"))
+        self.assertFalse(authorized("wrong", "secret"))
+        self.assertTrue(authorized("secret", "secret"))
 
     def test_fastapi_check_route_exists(self):
         self.assertIn("/api/check", [route.path for route in app.routes])

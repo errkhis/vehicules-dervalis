@@ -25,7 +25,7 @@ IDs stop these overlapping searches from sending old notices again.
 
 ## Deploy on free Vercel
 
-Create a **separate Vercel project** with **Root Directory = `next_bot`** and
+Create a **separate Vercel project** with **Root Directory = `vehicules-dervalis`** and
 Framework Preset **Other**. Use Python 3.12. Keep the included `vercel.json`.
 There is no browser/Node build step. Do not copy the old project's build settings.
 
@@ -51,13 +51,12 @@ After deploying, configure your **outside scheduler**:
 | Setting | Value |
 | --- | --- |
 | Method | `GET` |
-| URL | `https://YOUR-PROJECT.vercel.app/api/check` |
+| URL | `https://YOUR-PROJECT.vercel.app/api/check?secret=YOUR_CRON_SECRET` |
 | Frequency | Every 10 minutes (`*/10 * * * *`) |
-| Request header | `Authorization: Bearer YOUR_CRON_SECRET` |
 | Timeout | Up to 300 seconds, if the scheduler supports it |
 
-Keep the secret in the scheduler's private header settings, not in the URL.
-Use the Production URL. Preview deployments refuse to send messages. If Vercel
+Use the Production URL. Keep this URL private because it contains the secret.
+Preview deployments refuse to send messages. If Vercel
 Deployment Protection is enabled for that URL, configure the scheduler's allowed
 access using Vercel's supported protection settings.
 
