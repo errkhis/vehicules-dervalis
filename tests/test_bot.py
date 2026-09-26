@@ -14,7 +14,7 @@ from vehicle_bot.models import Details, Notice
 from vehicle_bot.portal import Portal, PortalError, parse_details, parse_listing, soup_of
 from vehicle_bot.service import CASABLANCA, run, scan_start
 from vehicle_bot.telegram import DeliveryError, Telegram, format_message
-from api.check import authorized
+from api.check import app, authorized
 
 TODAY = date(2026, 9, 25)
 NOW = datetime(2026, 9, 25, 12, tzinfo=CASABLANCA)
@@ -254,6 +254,9 @@ class TelegramTests(unittest.TestCase):
         self.assertFalse(authorized("secret", "secret"))
         self.assertFalse(authorized("Bearer wrong", "secret"))
         self.assertTrue(authorized("Bearer secret", "secret"))
+
+    def test_fastapi_check_route_exists(self):
+        self.assertIn("/api/check", [route.path for route in app.routes])
 
 
 if __name__ == "__main__":
