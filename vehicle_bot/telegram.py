@@ -25,6 +25,7 @@ def format_message(notice, details):
 
 class Telegram:
     def __init__(self, token, chat_id):
+        self.token = token
         self.url = f"https://api.telegram.org/bot{token}/sendMessage"
         self.chat_id = chat_id
 
@@ -43,7 +44,9 @@ class Telegram:
         if data.get("ok") is not True:
             code = data.get("error_code", response.status_code)
             retry = max(600, int(data.get("parameters", {}).get("retry_after", 600)))
-            raise DeliveryError(f"Telegram rejected request (code {code})",
+            description = str(data.get("description") or "Telegram rejected the request")
+            description = description.replace(self.token, "[hidden]")[:240]
+            raise DeliveryError(f"Telegram rejected request (code {code}): {description}",
                                 uncertain=response.status_code >= 500, retry_seconds=retry)
         message_id = data.get("result", {}).get("message_id")
         if not isinstance(message_id, int):
