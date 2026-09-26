@@ -1,0 +1,6 @@
+.venv
+.scratch
+.env
+__pycache__
+tests
+*.log

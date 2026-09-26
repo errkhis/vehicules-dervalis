@@ -1,0 +1,24 @@
+{
+  "include": [
+    "vehicule", "vehicules", "vehicul", "vehiculs", "voiture", "voitures",
+    "fourgon", "fourgons", "forgon", "forgons", "fourgonnette", "fourgonnettes",
+    "furgon", "furgons", "ambulance", "ambulances", "ambulancier", "ambulanciers",
+    "camion", "camions", "camionnette", "camionnettes", "camionette", "camionettes",
+    "minibus", "mini bus", "autobus", "autocar", "autocars", "bus",
+    "pick up", "pick ups", "pickup", "pickups", "4x4", "4 x 4", "suv",
+    "berline", "berlines", "citadine", "citadines", "utilitaire", "utilitaires",
+    "motocycle", "motocycles", "motocyclette", "motocyclettes", "moto", "motos",
+    "scooter", "scooters", "tricycle", "tricycles", "quad", "quads",
+    "tracteur", "tracteurs", "remorque", "remorques", "semi remorque", "semi remorques",
+    "autocaravane", "autocaravanes", "corbillard", "corbillards",
+    "benne tasseuse", "bennes tasseuses", "balayeuse", "balayeuses",
+    "hydrocureur", "hydrocureurs", "chargeuse", "chargeuses", "tractopelle", "tractopelles",
+    "automobile", "automobiles", "pneu", "pneus", "pneumatique", "pneumatiques",
+    "parc automobile", "parc auto", "materiel roulant", "transport scolaire",
+    "سيارة", "سيارات", "السيارات", "السيارة", "عربة", "عربات", "العربات",
+    "مركبة", "مركبات", "المركبات", "شاحنة", "شاحنات", "الشاحنات",
+    "حافلة", "حافلات", "الحافلات", "اسعاف", "الاسعاف", "دراجة", "دراجات",
+    "الدراجات", "جرار", "جرارات", "الجرارات", "النقل المدرسي"
+  ],
+  "exclude": []
+}

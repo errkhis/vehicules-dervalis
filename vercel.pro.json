@@ -1,0 +1,5 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {"api/check.py": {"maxDuration": 300}},
+  "crons": [{"path": "/api/check", "schedule": "*/10 * * * *"}]
+}

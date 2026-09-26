@@ -1,0 +1,5 @@
+beautifulsoup4==4.12.3
+requests==2.32.3
+tzdata==2025.2
+psycopg[binary]==3.3.6
+lxml==6.1.3
