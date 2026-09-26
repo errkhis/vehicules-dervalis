@@ -1,2 +1,16 @@
+[project]
+name = "vehicules-dervalis"
+version = "0.1.0"
+description = "Vehicle-related AOS procurement alerts for Telegram"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.115.5",
+    "beautifulsoup4==4.12.3",
+    "requests==2.32.3",
+    "tzdata==2025.2",
+    "psycopg[binary]==3.3.6",
+    "lxml==6.1.3",
+]
+
 [tool.vercel]
 entrypoint = "api.check:app"
