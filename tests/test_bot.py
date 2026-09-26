@@ -72,8 +72,18 @@ class ConfigTests(unittest.TestCase):
                 Config.from_env()
         self.assertEqual(
             str(ctx.exception),
-            "Missing Vercel setting: DATABASE_URL, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, CRON_SECRET",
+            "Missing Vercel setting: DATABASE_URL or POSTGRES_URL, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, CRON_SECRET",
         )
+
+    def test_uses_supabase_postgres_url_when_database_url_is_not_set(self):
+        values = {
+            "POSTGRES_URL": "postgresql://example",
+            "TELEGRAM_BOT_TOKEN": "token",
+            "TELEGRAM_CHAT_ID": "chat",
+            "CRON_SECRET": "more-than-sixteen-characters",
+        }
+        with patch.dict(os.environ, values, clear=True), patch("vehicle_bot.config.load_env"):
+            self.assertEqual(Config.from_env().database_url, "postgresql://example")
 
 
 class ParserTests(unittest.TestCase):

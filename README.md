@@ -35,7 +35,7 @@ Set these four environment variables for **Production**:
 | --- | --- |
 | `TELEGRAM_BOT_TOKEN` | The new bot's token from BotFather |
 | `TELEGRAM_CHAT_ID` | Your group/channel ID (often `-100...`), or a public channel's `@username` |
-| `DATABASE_URL` | PostgreSQL connection URL, including the provider's SSL settings |
+| `DATABASE_URL` | PostgreSQL connection URL. Leave this empty when the Supabase Vercel integration already provides `POSTGRES_URL`. |
 | `CRON_SECRET` | A random secret, at least 16 characters; 32 random bytes recommended |
 
 Add the bot to your group/channel. Give it permission to send messages. For a

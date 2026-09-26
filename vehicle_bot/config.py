@@ -31,8 +31,9 @@ class Config:
     @classmethod
     def from_env(cls):
         load_env()
-        keys = ("DATABASE_URL", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "CRON_SECRET")
-        values = [os.environ.get(key, "").strip() for key in keys]
+        database_url = os.environ.get("DATABASE_URL", "").strip() or os.environ.get("POSTGRES_URL", "").strip()
+        keys = ("DATABASE_URL or POSTGRES_URL", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "CRON_SECRET")
+        values = [database_url, *(os.environ.get(key, "").strip() for key in keys[1:])]
         if not all(values):
             missing = [key for key, value in zip(keys, values) if not value]
             raise ConfigError("Missing Vercel setting: " + ", ".join(missing))
