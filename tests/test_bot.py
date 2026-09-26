@@ -15,7 +15,7 @@ from vehicle_bot.models import Details, Notice
 from vehicle_bot.portal import Portal, PortalError, parse_details, parse_listing, soup_of
 from vehicle_bot.service import CASABLANCA, run, scan_start
 from vehicle_bot.telegram import DeliveryError, Telegram, format_message
-from api.check import app, authorized
+from api.check import app, authorized, safe_database_message
 
 TODAY = date(2026, 9, 25)
 NOW = datetime(2026, 9, 25, 12, tzinfo=CASABLANCA)
@@ -278,6 +278,13 @@ class TelegramTests(unittest.TestCase):
 
     def test_fastapi_check_route_exists(self):
         self.assertIn("/api/check", [route.path for route in app.routes])
+
+    def test_database_message_hides_connection_password(self):
+        error = Exception("could not connect to postgresql://user:password@example.com:5432/postgres")
+        self.assertEqual(
+            safe_database_message(error),
+            "could not connect to postgresql://***@example.com:5432/postgres",
+        )
 
 
 if __name__ == "__main__":

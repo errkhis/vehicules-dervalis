@@ -1,11 +1,13 @@
 import hmac
 import logging
 import os
+import re
 import sys
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
+from psycopg import Error as PsycopgError
 
 # Works when next_bot is the Vercel project root and when imported from this repo.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -19,6 +21,13 @@ from vehicle_bot.telegram import Telegram
 
 def authorized(provided_secret, expected_secret):
     return bool(expected_secret) and hmac.compare_digest(provided_secret or "", expected_secret)
+
+
+def safe_database_message(exc):
+    """Return a useful database message while hiding a connection password."""
+    diagnostic = getattr(exc, "diag", None)
+    message = getattr(diagnostic, "message_primary", None) or str(exc) or "Database request failed"
+    return re.sub(r"postgres(?:ql)?://[^\s@]+@", "postgresql://***@", message)[:240]
 
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
@@ -50,6 +59,14 @@ def check(cron_secret: str | None = Query(default=None, alias="secret")):
         return JSONResponse(
             status_code=500,
             content={"ok": False, "error": str(exc)},
+            headers={"Cache-Control": "no-store"},
+        )
+    except PsycopgError as exc:
+        message = safe_database_message(exc)
+        logging.error("Vehicle database failed: %s", message)
+        return JSONResponse(
+            status_code=500,
+            content={"ok": False, "error": "Database error: " + message},
             headers={"Cache-Control": "no-store"},
         )
     except Exception as exc:
