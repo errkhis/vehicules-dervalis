@@ -53,7 +53,7 @@ class Store:
         row = self.conn.execute("SELECT last_scan FROM vehicle_bot_runs WHERE chat_id=%s", (self.chat_id,)).fetchone()
         return row["last_scan"] if row else None
 
-    def remember(self, notices, matcher, scan_date: date):
+    def remember(self, notices, matcher, scan_date: date, advance_checkpoint=True):
         with self.conn.transaction():
             rows = self.conn.execute("""SELECT notice_key FROM vehicle_bot_notices
                 WHERE chat_id=%s AND notice_key = ANY(%s)""",
@@ -69,14 +69,24 @@ class Store:
                 with self.conn.cursor() as cursor:
                     cursor.executemany("""INSERT INTO vehicle_bot_notices(chat_id,notice_key,notice,status)
                         VALUES (%s,%s,%s::jsonb,%s) ON CONFLICT DO NOTHING""", new)
-            self.conn.execute("UPDATE vehicle_bot_runs SET last_scan=%s WHERE chat_id=%s AND owner=%s",
-                              (scan_date, self.chat_id, self.owner))
+            if advance_checkpoint:
+                self.conn.execute("UPDATE vehicle_bot_runs SET last_scan=%s WHERE chat_id=%s AND owner=%s",
+                                  (scan_date, self.chat_id, self.owner))
         return {"new_notices": len(new), "new_matches": sum(row[3] == "pending" for row in new)}
 
     def pending(self, limit):
         rows = self.conn.execute("""SELECT notice,message FROM vehicle_bot_notices
             WHERE chat_id=%s AND status='pending' AND retry_at <= NOW()
-            ORDER BY attempts, created_at, notice_key LIMIT %s""", (self.chat_id, limit)).fetchall()
+            ORDER BY attempts, created_at, notice_key LIMIT %s""",
+            (self.chat_id, limit)).fetchall()
+        return [(Notice(**row["notice"]), row["message"]) for row in rows]
+
+    def pending_on_date(self, limit, published_date):
+        rows = self.conn.execute("""SELECT notice,message FROM vehicle_bot_notices
+            WHERE chat_id=%s AND status='pending' AND retry_at <= NOW()
+              AND notice->>'published_date'=%s
+            ORDER BY attempts, created_at, notice_key LIMIT %s""",
+            (self.chat_id, published_date, limit)).fetchall()
         return [(Notice(**row["notice"]), row["message"]) for row in rows]
 
     def cache_message(self, key, message):

@@ -55,6 +55,12 @@ After deploying, configure your **outside scheduler**:
 | Frequency | Every 10 minutes (`*/10 * * * *`) |
 | Timeout | Up to 300 seconds, if the scheduler supports it |
 
+To send a one-time test for a past publication date, add `&date=YYYY-MM-DD` to
+the protected URL, for example `&date=2026-09-25`. This checks and sends only
+matching notices from that date, keeps already-sent notices deduplicated, and
+does not move the normal scan date. Do not put a `date` value in the repeating
+scheduler URL.
+
 Use the Production URL. Keep this URL private because it contains the secret.
 Preview deployments refuse to send messages. If Vercel
 Deployment Protection is enabled for that URL, configure the scheduler's allowed

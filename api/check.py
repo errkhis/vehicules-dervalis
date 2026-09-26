@@ -3,6 +3,7 @@ import logging
 import os
 import re
 import sys
+from datetime import date, datetime
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
@@ -14,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from vehicle_bot.config import Config, ConfigError, load_env
 from vehicle_bot.matching import Matcher
 from vehicle_bot.portal import Portal
-from vehicle_bot.service import run
+from vehicle_bot.service import CASABLANCA, run
 from vehicle_bot.storage import Store
 from vehicle_bot.telegram import Telegram
 
@@ -34,13 +35,16 @@ app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
 
 @app.get("/api/check")
-def check(cron_secret: str | None = Query(default=None, alias="secret")):
+def check(cron_secret: str | None = Query(default=None, alias="secret"),
+          requested_date: date | None = Query(default=None, alias="date")):
     """Run one protected procurement scan for the external scheduler."""
     load_env()
     if not authorized(cron_secret, os.environ.get("CRON_SECRET", "").strip()):
         raise HTTPException(status_code=401, detail="unauthorized")
     if os.environ.get("VERCEL_ENV") not in (None, "production"):
         raise HTTPException(status_code=403, detail="production_only")
+    if requested_date and requested_date > datetime.now(CASABLANCA).date():
+        raise HTTPException(status_code=400, detail="date_cannot_be_in_the_future")
 
     store = portal = None
     try:
@@ -49,7 +53,8 @@ def check(cron_secret: str | None = Query(default=None, alias="secret")):
         store = Store(config.database_url, config.chat_id)
         store.initialize()
         portal = Portal()
-        result = run(store, portal, matcher, Telegram(config.token, config.chat_id), config.max_alerts)
+        result = run(store, portal, matcher, Telegram(config.token, config.chat_id),
+                     config.max_alerts, target_date=requested_date)
         return JSONResponse(
             status_code=200 if result["ok"] else 503,
             content=result,

@@ -18,20 +18,30 @@ def scan_start(now, previous):
     return start
 
 
-def run(store, portal, matcher, sender, max_alerts=20, now=None, budget_seconds=220):
+def run(store, portal, matcher, sender, max_alerts=20, now=None, budget_seconds=220,
+        target_date=None):
     started = time.monotonic()
     now = now or datetime.now(CASABLANCA)
     if not store.acquire():
         return {"ok": True, "skipped": "another_check_is_running"}
     result = {"ok": True, "listed": 0, "details_fetched": 0, "sent": 0, "errors": []}
+    if target_date:
+        result["test_date"] = target_date.isoformat()
     try:
-        notices = portal.listing(scan_start(now, store.last_scan()), now.date())
-        result.update(store.remember(notices, matcher, now.date()))
+        if target_date:
+            notices = portal.listing(target_date, target_date)
+            result.update(store.remember(notices, matcher, target_date,
+                                         advance_checkpoint=False))
+        else:
+            notices = portal.listing(scan_start(now, store.last_scan()), now.date())
+            result.update(store.remember(notices, matcher, now.date()))
         result["listed"] = len(notices)
     except Exception as exc:
         result["ok"] = False
         result["errors"].append("Listing failed: " + type(exc).__name__)
-    for notice, message in store.pending(max_alerts):
+    pending = (store.pending_on_date(max_alerts, target_date.isoformat())
+               if target_date else store.pending(max_alerts))
+    for notice, message in pending:
         if time.monotonic() - started > budget_seconds:
             result["deferred"] = True
             break
