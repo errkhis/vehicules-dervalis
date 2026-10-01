@@ -135,6 +135,7 @@ def parse_details(soup, notice):
         r"Adresse\s+de\s+retrait\s+des\s+dossiers",
         r"Adresse\s+de\s+d[eé]p[oô]t\s+des\s+offres",
         r"Lieu\s+d'ouverture\s+des\s+plis",
+        r"Lieu\s+d['’]ex[eé]cution",
         r"Prix\s+d'acquisition\s+des\s+plans",
         r"Caution\s+provisoire",
         r"Prospectus,\s*notices\s+ou\s+autres\s+documents",
@@ -147,7 +148,7 @@ def parse_details(soup, notice):
 
     def field_value(label):
         stops = "|".join(field_labels)
-        match = re.search(rf"{label}\s*:\s*(.*?)(?=\s+(?:{stops})\s*:|$)", text, re.I)
+        match = re.search(rf"{label}\s*:\s*(.*?)(?=\s*(?:{stops})\s*:|$)", text, re.I)
         if not match:
             return None
         value = clean(match.group(1)).strip(" :")

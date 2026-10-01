@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import unittest
+from dataclasses import asdict
 from datetime import date, datetime
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -14,6 +15,7 @@ from vehicle_bot.matching import Matcher, normalize
 from vehicle_bot.models import Details, Notice
 from vehicle_bot.portal import Portal, PortalError, parse_details, parse_listing, soup_of
 from vehicle_bot.service import CASABLANCA, run, scan_start
+from vehicle_bot.storage import MESSAGE_VERSION, Store
 from vehicle_bot.telegram import DeliveryError, Telegram, format_message
 from api.check import app, authorized, safe_database_message
 
@@ -38,11 +40,12 @@ def listing_html(ref=1, procedure="AOS", published="25/09/2026", pages=1):
     </tr></table></form>'''
 
 
-def detail_html(value="-", include_docs=True):
+def detail_html(value="-", include_docs=True, fields=""):
     docs = f"Prospectus, notices ou autres documents : {value} Réunion : -" if include_docs else ""
     return f'''<div>Procédure : Appel d'offres ouvert simplifié | Sur offre de prix</div>
     <div>Estimation (en Dhs TTC) * : 385 000,00</div>
-    <span id="summary_dateHeureLimiteRemisePlis">08/10/2026 11:30</span><div>{docs}</div>'''
+    <span id="summary_dateHeureLimiteRemisePlis">08/10/2026 11:30</span>
+    <div>{fields} Date et heure limite : 08/10/2026 11:30 {docs}</div>'''
 
 
 class MatchingTests(unittest.TestCase):
@@ -114,6 +117,35 @@ class ParserTests(unittest.TestCase):
                 self.assertEqual(details.estimation, "385 000,00")
         self.assertIsNone(parse_details(soup_of(detail_html(include_docs=False)), notice()).documents)
 
+    def test_caution_value_stops_before_following_location(self):
+        fields = "Caution provisoire : 500,00 Lieu d'exécution : Rabat"
+        details = parse_details(soup_of(detail_html(fields=fields)), notice())
+        self.assertEqual(details.caution, "500,00")
+        self.assertEqual(details.location, "Rabat")
+
+    def test_location_value_stops_before_following_caution(self):
+        fields = "Lieu d’exécution : Salé Caution provisoire : 600,00"
+        details = parse_details(soup_of(detail_html(fields=fields)), notice())
+        self.assertEqual(details.location, "Salé")
+        self.assertEqual(details.caution, "600,00")
+
+    def test_missing_empty_and_dash_caution_and_location_are_none(self):
+        cases = [
+            "",
+            "Caution provisoire : Lieu d'exécution :",
+            "Caution provisoire : - Lieu d'exécution : -",
+        ]
+        for fields in cases:
+            with self.subTest(fields=fields):
+                details = parse_details(soup_of(detail_html(fields=fields)), notice())
+                self.assertIsNone(details.caution)
+                self.assertIsNone(details.location)
+
+    def test_details_three_argument_call_remains_compatible(self):
+        details = Details("385 000,00", "08/10/2026 11:30", False)
+        self.assertIsNone(details.caution)
+        self.assertIsNone(details.location)
+
     def test_mixed_encoding_preserves_vehicle_words(self):
         raw = "<div>véhicules سيارة</div>".encode("utf-8") + b"<p>caf\xe9</p>"
         self.assertEqual(soup_of(raw).get_text(" "), "véhicules سيارة café")
@@ -180,6 +212,56 @@ class MemoryStore:
     def counts(self):
         return {status: sum(r["status"] == status for r in self.rows.values())
                 for status in ["pending", "sent", "skipped", "uncertain"]}
+
+
+class StorageCacheTests(unittest.TestCase):
+    def test_stale_message_is_regenerated_and_cache_gets_current_version(self):
+        stale_row = {
+            "notice": asdict(notice()),
+            "message": "old cached text",
+            "message_version": MESSAGE_VERSION - 1,
+        }
+        store = Store.__new__(Store)
+        store.chat_id = "test-chat"
+        store.conn = Mock()
+
+        def fake_execute(query, params):
+            if "SELECT notice" in query:
+                self.assertIn("CASE WHEN message_version=%s THEN message ELSE NULL END", query)
+                row = dict(stale_row)
+                if row["message_version"] != params[0]:
+                    row["message"] = None
+                result_set = Mock()
+                result_set.fetchall.return_value = [row]
+                return result_set
+            return None
+
+        store.conn.execute.side_effect = fake_execute
+        store.acquire = Mock(return_value=True)
+        store.remember = Mock(return_value={"new_notices": 0, "new_matches": 0})
+        store.sending = Mock()
+        store.sent = Mock()
+        store.failure = Mock()
+        store.counts = Mock(return_value={})
+
+        portal = Mock(requests=1)
+        portal.listing.return_value = []
+        portal.details.return_value = Details(
+            "385 000,00", "08/10/2026 11:30", False,
+            caution="500,00", location="Rabat",
+        )
+        sender = Mock()
+        sender.send.return_value = 42
+
+        with patch("vehicle_bot.service.time.sleep"):
+            result = run(store, portal, Matcher(["vehicule"], []), sender,
+                         now=NOW, target_date=TODAY)
+
+        self.assertEqual(result["sent"], 1)
+        portal.details.assert_called_once()
+        self.assertIn("500,00", sender.send.call_args.args[0])
+        self.assertIn("Rabat", sender.send.call_args.args[0])
+        self.assertEqual(store.conn.execute.call_args_list[1].args[1][1], MESSAGE_VERSION)
 
 
 class WorkflowTests(unittest.TestCase):
@@ -249,6 +331,16 @@ class WorkflowTests(unittest.TestCase):
 
 
 class TelegramTests(unittest.TestCase):
+    def test_caution_and_location_are_html_escaped(self):
+        fields = ("Caution provisoire : 500 &lt;DH&gt; &amp; taxes "
+                  "Lieu d'exécution : Rabat &lt;centre&gt; &amp; Salé")
+        details = parse_details(soup_of(detail_html(fields=fields)), notice())
+        message = format_message(notice(), details)
+        self.assertIn("500 &lt;DH&gt; &amp; taxes", message)
+        self.assertIn("Rabat &lt;centre&gt; &amp; Salé", message)
+        self.assertNotIn("500 <DH>", message)
+        self.assertNotIn("Rabat <centre>", message)
+
     def test_message_escape_and_unknown_fields(self):
         msg = format_message(notice(title="Véhicule <test> & matériel"), Details(None, "soon", None))
         self.assertIn("&lt;test&gt; &amp;", msg)
