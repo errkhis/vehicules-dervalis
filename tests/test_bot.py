@@ -123,6 +123,11 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(details.caution, "500,00")
         self.assertEqual(details.location, "Rabat")
 
+    def test_caution_stops_before_qualifications_and_agreements(self):
+        fields = "Caution provisoire : 20 000,00 MAD Qualifications : - Agréments : -"
+        details = parse_details(soup_of(detail_html(fields=fields)), notice())
+        self.assertEqual(details.caution, "20 000,00 MAD")
+
     def test_location_value_stops_before_following_caution(self):
         fields = "Lieu d’exécution : Salé Caution provisoire : 600,00"
         details = parse_details(soup_of(detail_html(fields=fields)), notice())

@@ -147,7 +147,8 @@ def parse_details(soup, notice):
     )
 
     def field_value(label):
-        stops = "|".join(field_labels)
+        next_field = r"(?-i:[A-ZÀ-ÖØ-Þ][\wÀ-ÿ'’]*)"
+        stops = "|".join((*field_labels, next_field))
         match = re.search(rf"{label}\s*:\s*(.*?)(?=\s*(?:{stops})\s*:|$)", text, re.I)
         if not match:
             return None
