@@ -16,8 +16,12 @@ def format_message(notice, details):
     # Bound title length before escaping; Telegram counts rendered characters.
     title = notice.title if len(notice.title) <= 1800 else notice.title[:1797] + "..."
     estimation = (details.estimation + " DH TTC") if details.estimation else "Non indiquée"
+    caution = details.caution or "Non indiquée"
+    location = details.location or "Non indiquée"
     return (f"🚗 <b>Nouvel appel d'offres AOS</b>\n\n<b>{esc(title)}</b>\n\n"
             f"💰 Estimation : {esc(estimation)}\n"
+            f"🛡 Caution provisoire : {esc(caution)}\n"
+            f"📍 Lieu d'exécution : {esc(location)}\n"
             f"📅 Date limite : {esc(details.deadline)}\n"
             f"📂 Prospectus / notices / autres documents : <b>{docs}</b>\n\n"
             f'<a href="{esc(notice.url, quote=True)}">Voir l’avis officiel</a>')

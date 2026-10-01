@@ -15,3 +15,5 @@ class Details:
     estimation: str | None
     deadline: str
     documents: bool | None
+    caution: str | None = None
+    location: str | None = None

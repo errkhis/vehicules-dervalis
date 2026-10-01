@@ -11,7 +11,8 @@ in the title. It does not use the old bot's Premium membership system.
 2. Read the result list, including additional pages when needed.
 3. Compare notice IDs with PostgreSQL in one lookup. Only new titles are matched.
 4. Open detail pages only for new vehicle matches, or failed detail requests.
-5. Send title, estimated amount, deadline, document indicator, and official link.
+5. Send title, estimated amount, provisional deposit, place of execution, deadline,
+   document indicator, and official link.
 6. Save the Telegram message ID after a confirmed successful delivery.
 
 The documents indicator comes from **“Prospectus, notices ou autres documents”**.

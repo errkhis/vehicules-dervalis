@@ -6,6 +6,8 @@ from datetime import date
 
 from .models import Notice
 
+MESSAGE_VERSION = 2
+
 
 class Store:
     def __init__(self, database_url, chat_id):
@@ -28,12 +30,14 @@ class Store:
             CREATE TABLE IF NOT EXISTS vehicle_bot_notices (
                 chat_id TEXT NOT NULL, notice_key TEXT NOT NULL, notice JSONB NOT NULL,
                 status TEXT NOT NULL CHECK(status IN ('pending','skipped','sending','sent','uncertain')),
-                message TEXT, message_id BIGINT, attempts INTEGER NOT NULL DEFAULT 0,
+                message TEXT, message_version INTEGER NOT NULL DEFAULT 2,
+                message_id BIGINT, attempts INTEGER NOT NULL DEFAULT 0,
                 retry_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), last_error TEXT,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 PRIMARY KEY(chat_id, notice_key)
             )
         """)
+        self.conn.execute("ALTER TABLE vehicle_bot_notices ADD COLUMN IF NOT EXISTS message_version INTEGER NOT NULL DEFAULT 1")
 
     def acquire(self):
         self.conn.execute("INSERT INTO vehicle_bot_runs(chat_id) VALUES (%s) ON CONFLICT DO NOTHING", (self.chat_id,))
@@ -75,23 +79,27 @@ class Store:
         return {"new_notices": len(new), "new_matches": sum(row[3] == "pending" for row in new)}
 
     def pending(self, limit):
-        rows = self.conn.execute("""SELECT notice,message FROM vehicle_bot_notices
+        rows = self.conn.execute("""SELECT notice,
+            CASE WHEN message_version=%s THEN message ELSE NULL END AS message
+            FROM vehicle_bot_notices
             WHERE chat_id=%s AND status='pending' AND retry_at <= NOW()
             ORDER BY attempts, created_at, notice_key LIMIT %s""",
-            (self.chat_id, limit)).fetchall()
+            (MESSAGE_VERSION, self.chat_id, limit)).fetchall()
         return [(Notice(**row["notice"]), row["message"]) for row in rows]
 
     def pending_on_date(self, limit, published_date):
-        rows = self.conn.execute("""SELECT notice,message FROM vehicle_bot_notices
+        rows = self.conn.execute("""SELECT notice,
+            CASE WHEN message_version=%s THEN message ELSE NULL END AS message
+            FROM vehicle_bot_notices
             WHERE chat_id=%s AND status='pending' AND retry_at <= NOW()
               AND notice->>'published_date'=%s
             ORDER BY attempts, created_at, notice_key LIMIT %s""",
-            (self.chat_id, published_date, limit)).fetchall()
+            (MESSAGE_VERSION, self.chat_id, published_date, limit)).fetchall()
         return [(Notice(**row["notice"]), row["message"]) for row in rows]
 
     def cache_message(self, key, message):
-        self.conn.execute("UPDATE vehicle_bot_notices SET message=%s WHERE chat_id=%s AND notice_key=%s",
-                          (message, self.chat_id, key))
+        self.conn.execute("UPDATE vehicle_bot_notices SET message=%s,message_version=%s WHERE chat_id=%s AND notice_key=%s",
+                          (message, MESSAGE_VERSION, self.chat_id, key))
 
     def sending(self, key):
         self.conn.execute("""UPDATE vehicle_bot_notices SET status='sending',attempts=attempts+1,

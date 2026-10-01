@@ -130,7 +130,41 @@ def parse_details(soup, notice):
     if docs:
         value = clean(docs.group(1))
         documents = normalize(value) not in {"", "non", "neant", "aucun", "aucune", "sans objet"}
-    return Details(clean(estimation.group(1)) if estimation else None, deadline, documents)
+    field_labels = (
+        r"Estimation\s*(?:\([^)]*\))?\s*\*?",
+        r"Adresse\s+de\s+retrait\s+des\s+dossiers",
+        r"Adresse\s+de\s+d[eé]p[oô]t\s+des\s+offres",
+        r"Lieu\s+d'ouverture\s+des\s+plis",
+        r"Prix\s+d'acquisition\s+des\s+plans",
+        r"Caution\s+provisoire",
+        r"Prospectus,\s*notices\s+ou\s+autres\s+documents",
+        r"Date\s+et\s+heure\s+limite(?:\s+de\s+remise\s+des\s+plis)?",
+        r"R[eé]union",
+        r"Visites\s+des\s+lieux",
+        r"Variante",
+        r"Contact\s+Administratif",
+    )
+
+    def field_value(label):
+        stops = "|".join(field_labels)
+        match = re.search(rf"{label}\s*:\s*(.*?)(?=\s+(?:{stops})\s*:|$)", text, re.I)
+        if not match:
+            return None
+        value = clean(match.group(1)).strip(" :")
+        if normalize(value) in {"", "-", "neant", "non indique", "n/a"}:
+            return None
+        return value
+
+    location = field_value(r"Lieu\s+d['’]ex[eé]cution")
+    if location:
+        # PMMP sometimes repeats the same location from a tooltip in page text.
+        words = location.split()
+        midpoint = len(words) // 2
+        if len(words) % 2 == 0 and normalize(" ".join(words[:midpoint])) == normalize(" ".join(words[midpoint:])):
+            location = " ".join(words[:midpoint])
+    caution = field_value(r"Caution\s+provisoire")
+    return Details(clean(estimation.group(1)) if estimation else None, deadline,
+                   documents, caution=caution, location=location)
 
 
 class Portal:
